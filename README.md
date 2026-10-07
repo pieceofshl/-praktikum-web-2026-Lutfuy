@@ -1,4 +1,4 @@
-git add # Repositori Praktikum Pemrograman Web 2026
+# Repositori Praktikum Pemrograman Web 2026
 **Informasi Mahasiswa:**
 * **Nama:** Muhammad Luhfi Nabih
 * **NIM:** 2406043
