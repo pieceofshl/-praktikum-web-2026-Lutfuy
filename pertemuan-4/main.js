@@ -1,5 +1,6 @@
 // File: main.js
-// Integrasi Logika Data dan Render ke Elemen DOM
+// Portfolio Tracker: Form Handling, Search, Filter, Toggle Status, dan Hapus Data.
+
 const projects = [
   {
     id: 1,
@@ -31,71 +32,216 @@ const projects = [
   }
 ];
 
-const formatRupiah = (angka) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+let selectedCategory = "Semua";
+
+const formatRupiah = (amount) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     maximumFractionDigits: 0
-  }).format(angka);
+  }).format(amount);
 };
 
-const updateStats = (dataList) => {
-  const totalProjects = dataList.length;
-  const totalBudget = dataList.reduce((acc, curr) => acc + curr.budget, 0);
-  const completedCount = dataList.filter(item => item.completed).length;
+// Hindari input judul proyek diperlakukan sebagai HTML saat dirender.
+const escapeHTML = (value) => {
+  return String(value).replace(/[&<>"']/g, (character) => {
+    const escapedCharacters = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    };
+    return escapedCharacters[character];
+  });
+};
+
+// Statistik selalu mewakili semua proyek, bukan hanya hasil filter pencarian.
+const updateStats = () => {
+  const totalProjects = projects.length;
+  const totalBudget = projects.reduce((total, project) => total + project.budget, 0);
+  const completedCount = projects.filter((project) => project.completed).length;
 
   document.getElementById("stat-total-projects").textContent = totalProjects;
   document.getElementById("stat-total-budget").textContent = formatRupiah(totalBudget);
   document.getElementById("stat-completed-projects").textContent = completedCount;
 };
 
-const renderProjects = (filteredList) => {
-  const container = document.getElementById("project-list");
-  if (!container) return;
+const getFilteredProjects = () => {
+  const searchKeyword = document.getElementById("project-search").value
+    .trim()
+    .toLowerCase();
 
-  if (filteredList.length === 0) {
-    container.innerHTML = "<p style='text-align: center; color: #64748b; padding: 20px;'>Tidak ada proyek pada kategori ini.</p>";
+  return projects.filter((project) => {
+    const matchesCategory =
+      selectedCategory === "Semua" || project.category === selectedCategory;
+
+    const matchesSearch = project.title.toLowerCase().includes(searchKeyword);
+
+    return matchesCategory && matchesSearch;
+  });
+};
+
+const renderProjects = () => {
+  const container = document.getElementById("project-list");
+  const filteredProjects = getFilteredProjects();
+
+  if (filteredProjects.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>Tidak ada proyek yang cocok dengan pencarian atau kategori ini.</p>
+      </div>
+    `;
     return;
   }
 
-  const htmlString = filteredList.map(proj => {
-    const badgeClass = proj.completed ? "badge-success" : "badge-pending";
-    const statusText = proj.completed ? "Selesai" : "Dalam Pengerjaan";
+  container.innerHTML = filteredProjects.map((project) => {
+    const badgeClass = project.completed ? "badge-success" : "badge-pending";
+    const statusText = project.completed ? "Selesai" : "Dalam Pengerjaan";
+    const toggleAccessibleLabel = project.completed
+      ? "Ubah status ke Dalam Pengerjaan"
+      : "Ubah status ke Selesai";
 
     return `
-      <div class="project-card">
+      <article class="project-card">
         <div class="project-info">
-          <span class="project-category">${proj.category}</span>
-          <h4>${proj.title}</h4>
-          <p class="project-budget">${formatRupiah(proj.budget)}</p>
+          <span class="project-category">${escapeHTML(project.category)}</span>
+          <h3>${escapeHTML(project.title)}</h3>
+          <p class="project-budget">${formatRupiah(project.budget)}</p>
         </div>
-        <div>
+
+        <div class="project-status">
           <span class="badge ${badgeClass}">${statusText}</span>
+          <div class="project-actions">
+            <button
+              type="button"
+              class="button button-secondary"
+              data-action="toggle"
+              data-id="${project.id}"
+              aria-label="${toggleAccessibleLabel}: ${escapeHTML(project.title)}"
+            >Ubah Status</button>
+            <button
+              type="button"
+              class="button button-danger"
+              data-action="delete"
+              data-id="${project.id}"
+              aria-label="Hapus ${escapeHTML(project.title)}"
+            >Hapus</button>
+          </div>
         </div>
-      </div>
+      </article>
     `;
   }).join("");
+};
 
-  container.innerHTML = htmlString;
+const refreshDashboard = () => {
+  updateStats();
+  renderProjects();
+};
+
+const showFormMessage = (message, type = "") => {
+  const messageElement = document.getElementById("form-message");
+  messageElement.textContent = message;
+  messageElement.className = `form-message${type ? ` ${type}` : ""}`;
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderProjects(projects);
-  updateStats(projects);
-
+  const projectForm = document.getElementById("project-form");
+  const titleInput = document.getElementById("project-title");
+  const categoryInput = document.getElementById("project-category");
+  const budgetInput = document.getElementById("project-budget");
+  const completedInput = document.getElementById("project-completed");
+  const searchInput = document.getElementById("project-search");
   const filterButtons = document.querySelectorAll(".btn-filter");
-  filterButtons.forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      filterButtons.forEach(b => b.classList.remove("active"));
-      e.target.classList.add("active");
+  const projectList = document.getElementById("project-list");
 
-      const selectedCategory = e.target.getAttribute("data-category");
-      if (selectedCategory === "Semua") {
-        renderProjects(projects);
-      } else {
-        const filtered = projects.filter(p => p.category === selectedCategory);
-        renderProjects(filtered);
-      }
+  refreshDashboard();
+
+  // Fitur 1: validasi dan penambahan proyek dari formulir.
+  projectForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const title = titleInput.value.trim();
+    const category = categoryInput.value;
+    const budget = Number(budgetInput.value);
+
+    if (!title) {
+      showFormMessage("Judul proyek tidak boleh kosong.", "error");
+      titleInput.focus();
+      return;
+    }
+
+    if (!Number.isFinite(budget) || budget <= 0) {
+      showFormMessage("Anggaran harus berupa angka yang lebih besar dari 0.", "error");
+      budgetInput.focus();
+      return;
+    }
+
+    const newProject = {
+      id: Date.now(),
+      title,
+      category,
+      budget,
+      completed: completedInput.checked
+    };
+
+    projects.push(newProject);
+    projectForm.reset();
+    selectedCategory = "Semua";
+    searchInput.value = "";
+
+    filterButtons.forEach((button) => {
+      const isActive = button.dataset.category === "Semua";
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
     });
+
+    refreshDashboard();
+    showFormMessage("Proyek berhasil ditambahkan.", "success");
+    titleInput.focus();
+  });
+
+  // Fitur 2: pencarian langsung berdasarkan judul, digabung dengan filter kategori.
+  searchInput.addEventListener("input", () => {
+    renderProjects();
+  });
+
+  filterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedCategory = button.dataset.category;
+
+      filterButtons.forEach((filterButton) => {
+        const isActive = filterButton === button;
+        filterButton.classList.toggle("active", isActive);
+        filterButton.setAttribute("aria-pressed", String(isActive));
+      });
+
+      renderProjects();
+    });
+  });
+
+  // Fitur 3: ubah status dan hapus proyek dengan event delegation.
+  projectList.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("button[data-action]");
+    if (!actionButton) return;
+
+    const projectId = Number(actionButton.dataset.id);
+    const projectIndex = projects.findIndex((project) => project.id === projectId);
+    if (projectIndex === -1) return;
+
+    if (actionButton.dataset.action === "toggle") {
+      projects[projectIndex].completed = !projects[projectIndex].completed;
+      refreshDashboard();
+      return;
+    }
+
+    if (actionButton.dataset.action === "delete") {
+      const projectTitle = projects[projectIndex].title;
+      const shouldDelete = window.confirm(`Hapus proyek "${projectTitle}"?`);
+      if (!shouldDelete) return;
+
+      projects.splice(projectIndex, 1);
+      refreshDashboard();
+    }
   });
 });
