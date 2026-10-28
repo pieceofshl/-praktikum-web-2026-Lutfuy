@@ -6,6 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const taskInput = document.querySelector("#taskInput");
     const inputError = document.querySelector("#inputError");
     const todoList = document.querySelector("#todoList");
+    const taskSummary = document.querySelector("#taskSummary");
+    const clearCompletedBtn = document.querySelector("#clearCompletedBtn");
 
     // 2. Fungsi membaca dan menyimpan ke LocalStorage
     const getTasks = () => JSON.parse(localStorage.getItem("todo_tasks")) || [];
@@ -14,6 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. Fungsi menampilkan daftar tugas ke layar
     const renderTasks = () => {
         const tasks = getTasks();
+        const completedCount = tasks.filter((task) => task.completed).length;
+        const incompleteCount = tasks.length - completedCount;
+        taskSummary.textContent = `Total: ${tasks.length} Tugas | Selesai: ${completedCount} | Belum Selesai: ${incompleteCount}`;
         todoList.innerHTML = "";
 
         if (tasks.length === 0) {
@@ -76,10 +81,17 @@ document.addEventListener("DOMContentLoaded", () => {
             saveTasks(tasks);
             renderTasks();
         } else if (e.target.classList.contains("delete-btn")) {
+            if (!confirm("Apakah Anda yakin ingin menghapus tugas ini?")) return;
             tasks.splice(index, 1);
             saveTasks(tasks);
             renderTasks();
         }
+    });
+
+    clearCompletedBtn.addEventListener("click", () => {
+        const remainingTasks = getTasks().filter((task) => !task.completed);
+        saveTasks(remainingTasks);
+        renderTasks();
     });
 
     // Render pertama kali saat halaman selesai dimuat

@@ -8,8 +8,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="todo-app">
+    <main class="todo-app">
+        <p class="app-kicker">CATATAN HARIAN</p>
         <h2>Daftar Tugas Saya</h2>
+        <p class="task-summary" id="taskSummary" aria-live="polite"></p>
 
         <!-- Form Input Tugas -->
         <form id="todoForm" novalidate>
@@ -29,7 +31,8 @@
 
         <!-- Daftar Tugas -->
         <ul class="todo-list" id="todoList"></ul>
-    </div>
+        <button type="button" class="clear-completed-btn" id="clearCompletedBtn">Bersihkan Tugas Selesai</button>
+    </main>
 
     <script src="script.js"></script>
 </body>
